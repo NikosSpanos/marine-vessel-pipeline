@@ -1,0 +1,20 @@
+# Secrets. Only the placeholder file is committed.
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Claude Code: local settings and private notes stay out of this public repo
+.claude/settings.local.json
+.claude/plans/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
