@@ -12,3 +12,18 @@
 --   mmsi, event_time, latitude, longitude, speed_knots, course_degrees, nav_status
 --
 -- Prove it with: uv run --env-file .env pytest
+
+INSERT INTO vessel_positions_current
+    (mmsi, event_time, latitude, longitude, speed_knots, course_degrees, nav_status)
+VALUES
+    (%(mmsi)s, %(event_time)s, %(latitude)s, %(longitude)s, %(speed_knots)s, %(course_degrees)s, %(nav_status)s)
+ON CONFLICT (mmsi) DO UPDATE
+SET
+    event_time = EXCLUDED.event_time, -- EXCLUDED is the row that I am trying to insert.
+    latitude = EXCLUDED.latitude,
+    longitude = EXCLUDED.longitude,
+    speed_knots = EXCLUDED.speed_knots,
+    course_degrees = EXCLUDED.course_degrees,
+    nav_status = EXCLUDED.nav_status,
+    updated_at = NOW()
+WHERE vessel_positions_current.event_time < EXCLUDED.event_time;
