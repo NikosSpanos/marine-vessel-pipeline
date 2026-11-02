@@ -1,0 +1,39 @@
+name: marine-vessel-pipeline
+
+services:
+  postgres:
+    image: postgres:18.6-alpine3.24
+    restart: unless-stopped
+    environment:
+      # ${VAR:?} stops Compose with an error when a value is missing,
+      # instead of starting with a blank password.
+      POSTGRES_DB: ${POSTGRES_DB:?set in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      VESSEL_WRITER_PASSWORD: ${VESSEL_WRITER_PASSWORD:?set in .env}
+      VESSEL_READER_PASSWORD: ${VESSEL_READER_PASSWORD:?set in .env}
+    ports:
+      # Reachable from this machine only, not from the rest of the network.
+      - "127.0.0.1:${POSTGRES_PORT:?set in .env}:5432"
+    volumes:
+      # PostgreSQL 18 images keep data under a versioned folder inside this path.
+      - postgres_data:/var/lib/postgresql
+      # Scripts here run in name order, and only on an empty data directory.
+      - ./database/00-roles.sh:/docker-entrypoint-initdb.d/00-roles.sh:ro
+      - ./database/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    healthcheck:
+      # -h forces TCP. During initialisation the server listens only on a Unix
+      # socket, so a socket check would report healthy before init scripts finish.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - pipeline
+
+volumes:
+  postgres_data:
+
+networks:
+  pipeline:

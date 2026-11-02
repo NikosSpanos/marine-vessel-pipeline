@@ -1,0 +1,90 @@
+name: CI
+
+# Every pull request into an environment branch runs these gates. A job skipped by
+# its `if` reports success, so one ruleset can require all of them on every branch.
+on:
+  pull_request:
+    branches: [dev, sit, uat, main]
+
+permissions:
+  contents: read
+
+jobs:
+  promotion-path:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Allow only feature/* to dev, dev to sit, sit to uat and uat to main
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          case "$BASE:$HEAD" in
+            dev:feature/*|sit:dev|uat:sit|main:uat) echo "$HEAD into $BASE is allowed" ;;
+            *) echo "::error::$HEAD into $BASE is not an allowed promotion"; exit 1 ;;
+          esac
+
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+      - run: uv sync --frozen
+      - run: uv run --frozen ruff check .
+      - run: uv run --frozen ruff format --check .
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+      - name: Create throwaway credentials
+        run: scripts/create-env.sh
+      - run: docker compose config --quiet
+      - run: docker compose up -d --wait
+      - run: uv sync --frozen
+      - run: uv run --frozen --env-file .env pytest
+      - name: Remove the stack
+        if: always()
+        run: docker compose down -v
+
+  secret-scan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo
+
+  sit-integration:
+    if: github.base_ref == 'sit'
+    needs: [promotion-path, lint, test, secret-scan]
+    runs-on: ubuntu-24.04
+    environment: sit
+    steps:
+      - run: echo "Placeholder until the streaming path exists"
+
+  uat-acceptance:
+    if: github.base_ref == 'uat'
+    needs: [promotion-path, lint, test, secret-scan]
+    runs-on: ubuntu-24.04
+    environment: uat
+    steps:
+      - run: echo "Placeholder until the API exists"
+
+  # The prod environment requires approval, so this job holds the merge into main.
+  prod-approval:
+    if: github.base_ref == 'main'
+    needs: [promotion-path, lint, test, secret-scan]
+    runs-on: ubuntu-24.04
+    environment: prod
+    steps:
+      - run: echo "Approved for release"

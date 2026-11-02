@@ -1,0 +1,27 @@
+[project]
+name = "marine-vessel-pipeline"
+version = "0.1.0"
+description = "Streaming pipeline for vessel position events, built on Kafka, PostgreSQL, Airflow and FastAPI."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "psycopg[binary]>=3.3.6",
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]
