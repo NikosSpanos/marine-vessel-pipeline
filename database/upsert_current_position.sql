@@ -1,7 +1,5 @@
 -- Applies one event to vessel_positions_current. The consumer reuses this statement.
 --
--- YOUR TURN: write the statement by hand, below these comments.
---
 -- It must do three things:
 --   1. A vessel with no row yet gets one.
 --   2. A newer event replaces every position column and refreshes updated_at.
